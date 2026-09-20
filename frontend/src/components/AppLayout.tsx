@@ -12,7 +12,7 @@ export default function AppLayout() {
   return (
     <div className="app-layout">
       <nav className="app-nav">
-        <strong>Uphead Inventory</strong>
+        <strong>Inventory Platform</strong>
         <ul>
           {navItems.map((item) => (
             <li key={item.to}>

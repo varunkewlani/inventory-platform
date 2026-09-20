@@ -8,11 +8,11 @@
 		<version>4.1.1</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.uphead</groupId>
+	<groupId>com.inventoryplatform</groupId>
 	<artifactId>inventory-platform</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>inventory-platform</name>
-	<description>Uphead Multi-Tenant Order and Inventory Platform</description>
+	<description>Multi-Tenant Real-Time Order and Inventory Management Platform</description>
 	<url/>
 	<licenses>
 		<license/>

@@ -1,13 +1,13 @@
 services:
   mysql:
     image: mysql:8.4
-    container_name: uphead-mysql
+    container_name: inventory-mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpass}
-      MYSQL_DATABASE: ${DB_NAME:-uphead_inventory}
-      MYSQL_USER: ${DB_USERNAME:-uphead}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-uphead}
+      MYSQL_DATABASE: ${DB_NAME:-inventory_platform}
+      MYSQL_USER: ${DB_USERNAME:-inventory}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-inventory}
     ports:
       - "3306:3306"
     volumes:
@@ -20,7 +20,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: uphead-redis
+    container_name: inventory-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -32,7 +32,7 @@ services:
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
-    container_name: uphead-zookeeper
+    container_name: inventory-zookeeper
     restart: unless-stopped
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
@@ -40,7 +40,7 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:7.6.1
-    container_name: uphead-kafka
+    container_name: inventory-kafka
     restart: unless-stopped
     depends_on:
       - zookeeper

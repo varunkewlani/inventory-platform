@@ -3,9 +3,9 @@ spring:
     name: inventory-platform
 
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:uphead_inventory}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-    username: ${DB_USERNAME:uphead}
-    password: ${DB_PASSWORD:uphead}
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:inventory_platform}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${DB_USERNAME:inventory}
+    password: ${DB_PASSWORD:inventory}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -36,7 +36,7 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: "com.uphead.inventory.*"
+        spring.json.trusted.packages: "com.inventoryplatform.*"
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -68,4 +68,4 @@ management:
 logging:
   level:
     root: INFO
-    com.uphead.inventory: DEBUG
+    com.inventoryplatform: DEBUG
