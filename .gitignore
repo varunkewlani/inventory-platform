@@ -1,0 +1,31 @@
+# Secrets
+.env
+*.env
+!.env.example
+
+# Local reference material (assignment PDF, resume) — not part of the submission
+context/
+
+# Backend (Maven / Java)
+backend/target/
+*.class
+HELP.md
+
+# Frontend (Vite / Node)
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/*.local
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# OS
+Thumbs.db
