@@ -6,6 +6,10 @@
 # Local reference material (assignment PDF, resume) — not part of the submission
 context/
 
+# Internal working notes (build plan, running log) — not part of the submission
+plan.md
+handoff.md
+
 # Backend (Maven / Java)
 backend/target/
 *.class
