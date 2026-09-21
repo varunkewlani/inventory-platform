@@ -24,6 +24,13 @@ jobs:
         working-directory: backend
         run: ./mvnw -B dependency:go-offline
 
+      # AbstractIntegrationTest requests withReuse(true) on its MySQL/Redis
+      # containers, which Testcontainers only honors when this file opts in
+      # globally — without it, container reuse across integration test
+      # classes within the same run silently doesn't happen as designed.
+      - name: Enable Testcontainers reuse
+        run: echo "testcontainers.reuse.enable=true" > ~/.testcontainers.properties
+
       # Unit + integration tests (including the mandatory concurrency test)
       # run in the same step — Testcontainers spins up real, disposable
       # MySQL/Redis containers using the Docker daemon GitHub-hosted runners
