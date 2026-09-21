@@ -1,5 +1,6 @@
 package com.inventoryplatform.products;
 
+import com.inventoryplatform.audit.AuditService;
 import com.inventoryplatform.common.exception.ConflictException;
 import com.inventoryplatform.common.exception.NotFoundException;
 import com.inventoryplatform.common.tenant.TenantContext;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
+    private final AuditService auditService;
 
     @Override
     @Transactional
@@ -37,7 +39,9 @@ public class ProductServiceImpl implements ProductService {
                 .status(ProductStatus.ACTIVE)
                 .build();
 
-        return ProductResponse.from(productRepository.save(product));
+        ProductResponse response = ProductResponse.from(productRepository.save(product));
+        auditService.log("PRODUCT_CREATED", "Product", response.id().toString(), null, response);
+        return response;
     }
 
     @Override
@@ -45,6 +49,7 @@ public class ProductServiceImpl implements ProductService {
     public ProductResponse update(Long id, UpdateProductRequest request) {
         Long organizationId = TenantContext.getOrganizationId();
         Product product = findTenantScoped(id, organizationId);
+        ProductResponse before = ProductResponse.from(product);
 
         if (request.sku() != null && !request.sku().equals(product.getSku())) {
             if (productRepository.existsByOrganizationIdAndSkuAndIdNot(organizationId, request.sku(), id)) {
@@ -65,7 +70,9 @@ public class ProductServiceImpl implements ProductService {
             product.setStatus(request.status());
         }
 
-        return ProductResponse.from(productRepository.save(product));
+        ProductResponse after = ProductResponse.from(productRepository.save(product));
+        auditService.log("PRODUCT_UPDATED", "Product", id.toString(), before, after);
+        return after;
     }
 
     @Override

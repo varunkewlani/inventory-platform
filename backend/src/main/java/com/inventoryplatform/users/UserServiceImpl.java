@@ -1,5 +1,6 @@
 package com.inventoryplatform.users;
 
+import com.inventoryplatform.audit.AuditService;
 import com.inventoryplatform.common.exception.ConflictException;
 import com.inventoryplatform.common.exception.NotFoundException;
 import com.inventoryplatform.common.tenant.TenantContext;
@@ -18,6 +19,7 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditService auditService;
 
     @Override
     @Transactional
@@ -35,7 +37,9 @@ public class UserServiceImpl implements UserService {
                 .status(UserStatus.ACTIVE)
                 .build();
 
-        return UserResponse.from(userRepository.save(user));
+        UserResponse response = UserResponse.from(userRepository.save(user));
+        auditService.log("USER_CREATED", "User", response.id().toString(), null, response);
+        return response;
     }
 
     @Override
@@ -61,8 +65,14 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserResponse updateStatus(Long id, UserStatus status) {
         User user = findTenantScoped(id);
+        UserStatus previousStatus = user.getStatus();
         user.setStatus(status);
-        return UserResponse.from(userRepository.save(user));
+        UserResponse response = UserResponse.from(userRepository.save(user));
+
+        auditService.log("USER_STATUS_CHANGED", "User", id.toString(),
+                java.util.Map.of("status", previousStatus), java.util.Map.of("status", status));
+
+        return response;
     }
 
     private User findTenantScoped(Long id) {

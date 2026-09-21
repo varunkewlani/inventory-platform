@@ -1,11 +1,13 @@
 package com.inventoryplatform.inventory;
 
+import com.inventoryplatform.audit.AuditService;
 import com.inventoryplatform.common.exception.BadRequestException;
 import com.inventoryplatform.common.exception.ConflictException;
 import com.inventoryplatform.common.exception.InsufficientInventoryException;
 import com.inventoryplatform.common.exception.NotFoundException;
 import com.inventoryplatform.common.tenant.TenantContext;
 import com.inventoryplatform.common.util.Specs;
+import com.inventoryplatform.infrastructure.websocket.NotificationService;
 import com.inventoryplatform.inventory.dto.*;
 import com.inventoryplatform.products.Product;
 import com.inventoryplatform.products.ProductRepository;
@@ -18,14 +20,24 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class InventoryServiceImpl implements InventoryService {
+
+    // Deliberately a fixed constant rather than a per-product/per-org
+    // setting — configurable thresholds are listed as a future improvement
+    // (README), not needed to satisfy the spec's "Low Inventory"
+    // notification example under this deadline.
+    private static final int LOW_STOCK_THRESHOLD = 5;
 
     private final InventoryRepository inventoryRepository;
     private final InventoryMovementRepository movementRepository;
     private final ProductRepository productRepository;
     private final WarehouseRepository warehouseRepository;
+    private final AuditService auditService;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
@@ -47,8 +59,13 @@ public class InventoryServiceImpl implements InventoryService {
         }
 
         Inventory refreshed = reload(inventory.getId());
-        recordMovement(refreshed, request.type() == AdjustmentType.ADD ? InventoryMovementType.ADD : InventoryMovementType.REMOVE,
-                request.quantity(), request.note());
+        InventoryMovementType movementType = request.type() == AdjustmentType.ADD ? InventoryMovementType.ADD : InventoryMovementType.REMOVE;
+        recordMovement(refreshed, movementType, request.quantity(), request.note());
+        auditInventoryChange(refreshed, movementType.name());
+
+        if (request.type() == AdjustmentType.REMOVE) {
+            checkLowStock(refreshed, warehouse, product);
+        }
 
         return toResponse(refreshed, warehouse, product);
     }
@@ -79,6 +96,9 @@ public class InventoryServiceImpl implements InventoryService {
 
         recordMovement(sourceAfter, InventoryMovementType.TRANSFER_OUT, request.quantity(), request.note());
         recordMovement(destinationAfter, InventoryMovementType.TRANSFER_IN, request.quantity(), request.note());
+        auditInventoryChange(sourceAfter, InventoryMovementType.TRANSFER_OUT.name());
+        auditInventoryChange(destinationAfter, InventoryMovementType.TRANSFER_IN.name());
+        checkLowStock(sourceAfter, fromWarehouse, product);
 
         return new TransferResult(
                 toResponse(sourceAfter, fromWarehouse, product),
@@ -100,6 +120,8 @@ public class InventoryServiceImpl implements InventoryService {
 
         Inventory refreshed = reload(inventory.getId());
         recordMovement(refreshed, InventoryMovementType.RESERVE, request.quantity(), null);
+        auditInventoryChange(refreshed, InventoryMovementType.RESERVE.name());
+        checkLowStock(refreshed, warehouse, product);
         return toResponse(refreshed, warehouse, product);
     }
 
@@ -118,6 +140,7 @@ public class InventoryServiceImpl implements InventoryService {
 
         Inventory refreshed = reload(inventory.getId());
         recordMovement(refreshed, InventoryMovementType.RELEASE, request.quantity(), null);
+        auditInventoryChange(refreshed, InventoryMovementType.RELEASE.name());
         return toResponse(refreshed, warehouse, product);
     }
 
@@ -136,6 +159,7 @@ public class InventoryServiceImpl implements InventoryService {
 
         Inventory refreshed = reload(inventory.getId());
         recordMovement(refreshed, InventoryMovementType.FULFILL, request.quantity(), null);
+        auditInventoryChange(refreshed, InventoryMovementType.FULFILL.name());
         return toResponse(refreshed, warehouse, product);
     }
 
@@ -224,6 +248,24 @@ public class InventoryServiceImpl implements InventoryService {
                 .note(note)
                 .createdBy(TenantContext.getUserId())
                 .build());
+    }
+
+    private void auditInventoryChange(Inventory inventory, String action) {
+        auditService.log("INVENTORY_" + action, "Inventory", inventory.getId().toString(), null, Map.of(
+                "availableQuantity", inventory.getAvailableQuantity(),
+                "reservedQuantity", inventory.getReservedQuantity()));
+    }
+
+    private void checkLowStock(Inventory inventory, Warehouse warehouse, Product product) {
+        if (inventory.getAvailableQuantity() <= LOW_STOCK_THRESHOLD) {
+            notificationService.notifyOrganization(inventory.getOrganizationId(), "INVENTORY_LOW", Map.of(
+                    "inventoryId", inventory.getId(),
+                    "warehouseId", warehouse.getId(),
+                    "warehouseName", warehouse.getName(),
+                    "productId", product.getId(),
+                    "productSku", product.getSku(),
+                    "remainingQuantity", inventory.getAvailableQuantity()));
+        }
     }
 
     private InventoryResponse toResponse(Inventory inventory, Warehouse warehouse, Product product) {

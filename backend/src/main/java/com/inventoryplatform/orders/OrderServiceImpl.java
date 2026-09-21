@@ -8,6 +8,7 @@ import com.inventoryplatform.common.tenant.TenantContext;
 import com.inventoryplatform.common.util.Specs;
 import com.inventoryplatform.customers.Customer;
 import com.inventoryplatform.customers.CustomerRepository;
+import com.inventoryplatform.infrastructure.kafka.OrderEvent;
 import com.inventoryplatform.inventory.InventoryService;
 import com.inventoryplatform.inventory.dto.FulfillInventoryRequest;
 import com.inventoryplatform.inventory.dto.ReleaseInventoryRequest;
@@ -21,6 +22,7 @@ import com.inventoryplatform.roles.RolePermissions;
 import com.inventoryplatform.warehouses.Warehouse;
 import com.inventoryplatform.warehouses.WarehouseRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -37,9 +39,13 @@ import java.util.Map;
  * The order-creation flow, matching the spec's pipeline exactly: validate
  * user/org (already established by auth + TenantContext by the time we get
  * here) → validate products → check inventory → reserve inventory → create
- * order. Audit-event generation and the Kafka publish are wired in during
- * Phase 4, once AuditService/KafkaTemplate exist — that's a deliberate
- * split per plan.md, not an oversight.
+ * order → generate audit event → publish notification event. The last two
+ * steps happen asynchronously: this service publishes an {@link OrderEvent}
+ * as a Spring application event, and {@link
+ * com.inventoryplatform.infrastructure.kafka.OrderEventPublisher} forwards
+ * it to Kafka only after the transaction commits, where {@code AuditWorker}
+ * and {@code NotificationWorker} — two independent consumer groups — each
+ * pick it up.
  */
 @Service
 @RequiredArgsConstructor
@@ -51,6 +57,7 @@ public class OrderServiceImpl implements OrderService {
     private final ProductRepository productRepository;
     private final WarehouseRepository warehouseRepository;
     private final InventoryService inventoryService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -116,6 +123,8 @@ public class OrderServiceImpl implements OrderService {
                     .build()));
         }
 
+        eventPublisher.publishEvent(OrderEvent.created(organizationId, order.getId(), TenantContext.getUserId(), order.getStatus().name()));
+
         return toResponse(order, items, productsById);
     }
 
@@ -141,6 +150,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderResponse updateStatus(Long id, OrderStatus newStatus) {
         Order order = findTenantScoped(id);
+        OrderStatus previousStatus = order.getStatus();
 
         if (!OrderStatusTransitions.isAllowed(order.getStatus(), newStatus)) {
             throw new ConflictException("INVALID_STATUS_TRANSITION",
@@ -169,6 +179,10 @@ public class OrderServiceImpl implements OrderService {
 
         order.setStatus(newStatus);
         order = orderRepository.save(order);
+
+        eventPublisher.publishEvent(OrderEvent.statusChanged(
+                order.getOrganizationId(), order.getId(), TenantContext.getUserId(),
+                previousStatus.name(), newStatus.name()));
 
         return toResponse(order, items, null);
     }

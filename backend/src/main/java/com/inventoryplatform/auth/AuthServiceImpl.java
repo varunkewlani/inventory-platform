@@ -1,5 +1,6 @@
 package com.inventoryplatform.auth;
 
+import com.inventoryplatform.audit.AuditService;
 import com.inventoryplatform.auth.dto.AuthResult;
 import com.inventoryplatform.auth.dto.AuthTokens;
 import com.inventoryplatform.auth.dto.LoginRequest;
@@ -27,6 +28,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final AuditService auditService;
 
     @Override
     @Transactional
@@ -48,6 +50,9 @@ public class AuthServiceImpl implements AuthService {
                 .build();
         admin = userRepository.save(admin);
 
+        auditService.log(organization.getId(), admin.getId(), "USER_CREATED", "User", admin.getId().toString(),
+                null, UserResponse.from(admin));
+
         return new AuthResult(UserResponse.from(admin), issueTokens(admin, deviceInfo));
     }
 
@@ -66,6 +71,8 @@ public class AuthServiceImpl implements AuthService {
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new UnauthorizedException("Invalid email or password");
         }
+
+        auditService.log(user.getOrganizationId(), user.getId(), "LOGIN", "User", user.getId().toString(), null, null);
 
         return new AuthResult(UserResponse.from(user), issueTokens(user, deviceInfo));
     }
