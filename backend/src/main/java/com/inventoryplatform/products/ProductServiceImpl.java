@@ -12,15 +12,31 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
+import java.time.Duration;
+
+/**
+ * Product-detail cache: key {@code product:{organizationId}:{id}}, TTL 5
+ * minutes, invalidated (deleted, not updated in place) on every write —
+ * simple cache-aside rather than write-through, since eviction is one line
+ * and correctness doesn't depend on the cache ever holding a value. Cached
+ * as a JSON string with explicit (de)serialization — see DashboardService's
+ * javadoc for why, same reasoning applies here.
+ */
 @Service
 @RequiredArgsConstructor
 public class ProductServiceImpl implements ProductService {
 
+    private static final Duration PRODUCT_CACHE_TTL = Duration.ofMinutes(5);
+
     private final ProductRepository productRepository;
     private final AuditService auditService;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -72,13 +88,28 @@ public class ProductServiceImpl implements ProductService {
 
         ProductResponse after = ProductResponse.from(productRepository.save(product));
         auditService.log("PRODUCT_UPDATED", "Product", id.toString(), before, after);
+        redisTemplate.delete(productCacheKey(organizationId, id));
         return after;
     }
 
     @Override
     @Transactional(readOnly = true)
     public ProductResponse getById(Long id) {
-        return ProductResponse.from(findTenantScoped(id, TenantContext.getOrganizationId()));
+        Long organizationId = TenantContext.getOrganizationId();
+        String key = productCacheKey(organizationId, id);
+
+        String cachedJson = redisTemplate.opsForValue().get(key);
+        if (cachedJson != null) {
+            return objectMapper.readValue(cachedJson, ProductResponse.class);
+        }
+
+        ProductResponse response = ProductResponse.from(findTenantScoped(id, organizationId));
+        redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(response), PRODUCT_CACHE_TTL);
+        return response;
+    }
+
+    private String productCacheKey(Long organizationId, Long id) {
+        return "product:" + organizationId + ":" + id;
     }
 
     @Override

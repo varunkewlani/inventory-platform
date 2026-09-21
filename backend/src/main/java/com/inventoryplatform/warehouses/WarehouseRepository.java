@@ -14,4 +14,6 @@ public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
     Page<Warehouse> findAllByOrganizationId(Long organizationId, Pageable pageable);
 
     List<Warehouse> findAllByOrganizationId(Long organizationId);
+
+    long countByOrganizationId(Long organizationId);
 }

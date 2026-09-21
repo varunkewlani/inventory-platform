@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -29,6 +30,7 @@ public class SecurityConfig {
     private final JwtService jwtService;
     private final JsonAuthenticationEntryPoint authenticationEntryPoint;
     private final JsonAccessDeniedHandler accessDeniedHandler;
+    private final StringRedisTemplate stringRedisTemplate;
 
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
@@ -42,11 +44,15 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         JwtAuthFilter jwtAuthFilter = new JwtAuthFilter(jwtService);
         TenantFilter tenantFilter = new TenantFilter();
+        RateLimitFilter rateLimitFilter = new RateLimitFilter(stringRedisTemplate);
 
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .headers(headers -> headers
+                        .contentTypeOptions(withDefaults -> {})
+                        .frameOptions(frame -> frame.deny()))
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
@@ -58,8 +64,15 @@ public class SecurityConfig {
                         // trade-off, not an oversight.
                         .requestMatchers("/ws/**").permitAll()
                         .anyRequest().authenticated())
+                // addFilterBefore/After resolve eagerly against filters already
+                // registered, not lazily at build() — so JwtAuthFilter has to be
+                // placed before anything else positions itself relative to it.
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(tenantFilter, JwtAuthFilter.class);
+                .addFilterAfter(tenantFilter, JwtAuthFilter.class)
+                // Rate limit runs first, ahead of authentication, so it also
+                // throttles unauthenticated brute-force attempts against
+                // /auth/login and /auth/register.
+                .addFilterBefore(rateLimitFilter, JwtAuthFilter.class);
 
         return http.build();
     }

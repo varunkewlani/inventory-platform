@@ -72,4 +72,9 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long>, Jpa
     @Query("update Inventory i set i.reservedQuantity = i.reservedQuantity - :qty, i.version = i.version + 1 " +
             "where i.id = :id and i.reservedQuantity >= :qty")
     int consumeReservedIfSufficient(@Param("id") Long id, @Param("qty") int qty);
+
+    @Query("select coalesce(sum(i.availableQuantity), 0) from Inventory i where i.organizationId = :organizationId")
+    long sumAvailableQuantityByOrganizationId(@Param("organizationId") Long organizationId);
+
+    long countByOrganizationIdAndAvailableQuantityLessThanEqual(Long organizationId, int threshold);
 }

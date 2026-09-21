@@ -147,6 +147,14 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getRecent(int limit) {
+        return orderRepository
+                .findAllByOrganizationIdOrderByCreatedAtDesc(TenantContext.getOrganizationId(), org.springframework.data.domain.PageRequest.of(0, limit))
+                .stream().map(this::toResponse).toList();
+    }
+
+    @Override
     @Transactional
     public OrderResponse updateStatus(Long id, OrderStatus newStatus) {
         Order order = findTenantScoped(id);
