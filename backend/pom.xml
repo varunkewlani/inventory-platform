@@ -235,6 +235,22 @@
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!-- Default (reuseForks=true) runs every test class in one JVM, so
+					     AbstractIntegrationTest's static @Container fields are shared
+					     across all of them via the base class. In CI, ConcurrencyTest's
+					     MySQL connection was being refused outright right after other
+					     integration test classes ran, consistent with that shared
+					     container/JVM state becoming unstable partway through a long
+					     run on a resource-constrained runner. A fresh fork per class
+					     costs more startup time but makes each class fully independent. -->
+					<reuseForks>false</reuseForks>
+					<forkCount>1</forkCount>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 
