@@ -23,24 +23,25 @@ import org.testcontainers.utility.DockerImageName;
 @Testcontainers
 public abstract class AbstractIntegrationTest {
 
-    // withReuse: this sandbox is memory-constrained enough that spinning up
-    // a fresh MySQL + Redis container (and a fresh Spring context) per test
-    // class caused real "Communications link failure" errors under memory
-    // pressure — not a logic bug, an environment one. Reuse keeps one
-    // physical container alive across test classes/runs (keyed by config
-    // hash), cutting both startup cost and peak memory. Requires
-    // ~/.testcontainers.properties to have testcontainers.reuse.enable=true.
+    // Deliberately NOT using withReuse(true) here: it was tried as a fix for
+    // this project's local dev sandbox (memory-constrained enough that fresh
+    // containers per class caused real connection failures), but on CI's
+    // GitHub-hosted runners it correlated with a Redis command hanging for
+    // exactly Lettuce's 60s default timeout on the first request of the test
+    // class *after* a long-running one -- consistent with a stale/half-torn-
+    // down connection from a previous test class's closed Spring context on
+    // the reused container. Plain per-run (Ryuk-managed) containers are
+    // Testcontainers' standard, most-tested path and CI has the headroom
+    // for them (GitHub-hosted runners: 7GB RAM vs. this project's sandbox).
     @Container
     static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4")
             .withDatabaseName("inventory_platform_test")
             .withUsername("test")
-            .withPassword("test")
-            .withReuse(true);
+            .withPassword("test");
 
     @Container
     static final GenericContainer<?> REDIS = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-            .withExposedPorts(6379)
-            .withReuse(true);
+            .withExposedPorts(6379);
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
