@@ -32,6 +32,12 @@ spring:
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    listener:
+      # false when no broker is deployed (e.g. free-tier hosting without a
+      # managed Kafka add-on): without this, @KafkaListener containers poll-
+      # retry-reconnect in a tight loop against an unreachable broker, which
+      # on a fractional-CPU container starves the actual HTTP request threads
+      auto-startup: ${KAFKA_LISTENER_AUTO_STARTUP:true}
     consumer:
       group-id: inventory-platform
       auto-offset-reset: earliest
