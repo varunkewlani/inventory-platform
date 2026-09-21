@@ -31,6 +31,13 @@ public class AuthController {
     @Value("${app.auth.cookie-secure:false}")
     private boolean cookieSecure;
 
+    // Lax works when frontend/backend share a site (e.g. localhost, or a
+    // single custom domain). Cross-site deployments (e.g. two separate
+    // *.onrender.com subdomains, which the Public Suffix List treats as
+    // different sites) need None, which browsers only honor when Secure=true.
+    @Value("${app.auth.cookie-same-site:Lax}")
+    private String cookieSameSite;
+
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<LoginResponse> register(@Valid @RequestBody RegisterRequest request,
@@ -79,7 +86,7 @@ public class AuthController {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, tokens.refreshToken())
                 .httpOnly(true)
                 .secure(cookieSecure)
-                .sameSite("Lax")
+                .sameSite(cookieSameSite)
                 .path(REFRESH_COOKIE_PATH)
                 .maxAge(Math.max(maxAgeSeconds, 0))
                 .build();
@@ -90,7 +97,7 @@ public class AuthController {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
                 .httpOnly(true)
                 .secure(cookieSecure)
-                .sameSite("Lax")
+                .sameSite(cookieSameSite)
                 .path(REFRESH_COOKIE_PATH)
                 .maxAge(0)
                 .build();

@@ -3,7 +3,7 @@ spring:
     name: inventory-platform
 
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:inventory_platform}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:inventory_platform}?useSSL=${DB_USE_SSL:false}&requireSSL=${DB_REQUIRE_SSL:false}&verifyServerCertificate=${DB_VERIFY_SERVER_CERT:false}&allowPublicKeyRetrieval=true&serverTimezone=UTC
     username: ${DB_USERNAME:inventory}
     password: ${DB_PASSWORD:inventory}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -27,6 +27,8 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:false}
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
@@ -55,6 +57,7 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   auth:
     cookie-secure: ${COOKIE_SECURE:false}
+    cookie-same-site: ${COOKIE_SAME_SITE:Lax}
   rate-limit:
     requests-per-minute: ${RATE_LIMIT_PER_MINUTE:100}
 
