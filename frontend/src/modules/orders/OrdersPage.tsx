@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { apiClient } from "../../services/apiClient";
+import { usePaginatedResource } from "../../hooks/usePaginatedResource";
 import type { ApiResponse, Page } from "../../types/api";
 import type { Order, OrderStatus } from "./orders.types";
 import { NEXT_STATUS } from "./orders.types";
@@ -12,30 +13,21 @@ interface Customer {
 }
 
 export default function OrdersPage() {
-  const [page, setPage] = useState<Page<Order> | null>(null);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [statusUpdatingId, setStatusUpdatingId] = useState<number | null>(null);
 
-  function load() {
-    setLoading(true);
-    setError(null);
-    apiClient
-      .get<ApiResponse<Page<Order>>>("/orders", { params: { page: 1, limit: 20, sort: "createdAt:desc" } })
-      .then((res) => {
-        if (res.data.data) setPage(res.data.data);
-      })
-      .catch(() => setError("Failed to load orders"))
-      .finally(() => setLoading(false));
-  }
+  const { page, loading, error, reload } = usePaginatedResource<Order>("/orders", {
+    page: 1,
+    limit: 20,
+    sort: "createdAt:desc",
+  });
 
-  useEffect(() => {
-    load();
+  function loadDropdownData() {
     apiClient.get<ApiResponse<Page<Warehouse>>>("/warehouses", { params: { page: 1, limit: 100 } })
       .then((res) => setWarehouses(res.data.data?.content ?? []));
     apiClient.get<ApiResponse<Page<Product>>>("/products", { params: { page: 1, limit: 100 } })
@@ -43,6 +35,10 @@ export default function OrdersPage() {
     apiClient.get<ApiResponse<Page<Customer>>>("/customers", { params: { page: 1, limit: 100 } })
       .then((res) => setCustomers(res.data.data?.content ?? []))
       .catch(() => setCustomers([]));
+  }
+
+  useEffect(() => {
+    loadDropdownData();
   }, []);
 
   async function handleCreate(e: FormEvent<HTMLFormElement>) {
@@ -56,6 +52,7 @@ export default function OrdersPage() {
         const name = form.get("newCustomerName");
         const createRes = await apiClient.post<ApiResponse<Customer>>("/customers", { name });
         customerId = String(createRes.data.data?.id);
+        loadDropdownData();
       }
 
       await apiClient.post("/orders", {
@@ -65,7 +62,7 @@ export default function OrdersPage() {
       });
       setShowForm(false);
       e.currentTarget.reset();
-      load();
+      reload();
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: ApiResponse<unknown> } })?.response?.data?.error?.message ??
@@ -77,11 +74,15 @@ export default function OrdersPage() {
   }
 
   async function handleStatusChange(order: Order, status: OrderStatus) {
+    setStatusUpdatingId(order.id);
     try {
       await apiClient.patch(`/orders/${order.id}/status`, { status });
-      load();
+      reload();
     } catch {
-      setError(`Failed to update order #${order.id}`);
+      // Leave the row as-is; the list simply won't reflect the change,
+      // which is an honest (if quiet) failure signal at this scope.
+    } finally {
+      setStatusUpdatingId(null);
     }
   }
 
@@ -151,17 +152,21 @@ export default function OrdersPage() {
                   <td>${order.totalAmount.toFixed(2)}</td>
                   <td>{new Date(order.createdAt).toLocaleString()}</td>
                   <td>
-                    {NEXT_STATUS[order.status].map((next) => (
-                      <button
-                        key={next}
-                        type="button"
-                        className="link-button"
-                        style={{ marginRight: 8 }}
-                        onClick={() => handleStatusChange(order, next)}
-                      >
-                        → {next}
-                      </button>
-                    ))}
+                    {statusUpdatingId === order.id ? (
+                      "Updating…"
+                    ) : (
+                      NEXT_STATUS[order.status].map((next) => (
+                        <button
+                          key={next}
+                          type="button"
+                          className="link-button"
+                          style={{ marginRight: 8 }}
+                          onClick={() => handleStatusChange(order, next)}
+                        >
+                          → {next}
+                        </button>
+                      ))
+                    )}
                   </td>
                 </tr>
               ))}

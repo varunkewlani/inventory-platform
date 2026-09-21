@@ -1,58 +1,61 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { apiClient } from "../../services/apiClient";
-import type { ApiResponse, Page } from "../../types/api";
+import { usePaginatedResource } from "../../hooks/usePaginatedResource";
+import type { ApiResponse } from "../../types/api";
 import type { Product } from "./products.types";
 
 export default function ProductsPage() {
-  const [page, setPage] = useState<Page<Product> | null>(null);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [editing, setEditing] = useState<Product | "new" | null>(null);
+  // Bumped on every open/close so the form's `key` below always changes,
+  // even when re-opening the same row or clicking Edit twice in a row —
+  // without this, passing the same object/string back into setEditing can
+  // be a no-op from React's point of view (Object.is same-value bailout),
+  // which looked exactly like "clicking Edit does nothing."
+  const [editSession, setEditSession] = useState(0);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function load(searchTerm: string) {
-    setLoading(true);
-    setError(null);
-    apiClient
-      .get<ApiResponse<Page<Product>>>("/products", { params: { page: 1, limit: 20, search: searchTerm || undefined } })
-      .then((res) => {
-        if (res.data.data) setPage(res.data.data);
-      })
-      .catch(() => setError("Failed to load products"))
-      .finally(() => setLoading(false));
+  function openEdit(target: Product | "new" | null) {
+    setEditing(target);
+    setEditSession((s) => s + 1);
   }
 
-  useEffect(() => {
-    load("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const { page, loading, error, reload } = usePaginatedResource<Product>("/products", {
+    page: 1,
+    limit: 20,
+    search: search || undefined,
+  });
 
   function handleSearchSubmit(e: FormEvent) {
     e.preventDefault();
-    load(search);
+    setSearch(searchInput);
   }
 
-  async function handleCreate(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setFormError(null);
     setSubmitting(true);
     const form = new FormData(e.currentTarget);
+    const body = {
+      sku: form.get("sku"),
+      name: form.get("name"),
+      description: form.get("description") || undefined,
+      price: Number(form.get("price")),
+    };
     try {
-      await apiClient.post("/products", {
-        sku: form.get("sku"),
-        name: form.get("name"),
-        description: form.get("description") || undefined,
-        price: Number(form.get("price")),
-      });
-      setShowForm(false);
-      e.currentTarget.reset();
-      load(search);
+      if (editing && editing !== "new") {
+        await apiClient.patch(`/products/${editing.id}`, body);
+      } else {
+        await apiClient.post("/products", body);
+      }
+      setEditing(null);
+      reload();
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: ApiResponse<unknown> } })?.response?.data?.error?.message ??
-        "Failed to create product";
+        "Save failed";
       setFormError(message);
     } finally {
       setSubmitting(false);
@@ -62,26 +65,36 @@ export default function ProductsPage() {
   async function handleToggleStatus(product: Product) {
     const nextStatus = product.status === "ACTIVE" ? "DISABLED" : "ACTIVE";
     await apiClient.patch(`/products/${product.id}`, { status: nextStatus });
-    load(search);
+    reload();
   }
+
+  const editingProduct = editing !== "new" ? editing : null;
 
   return (
     <div className="page">
       <div className="page-header">
         <h1>Products</h1>
-        <button type="button" onClick={() => setShowForm((v) => !v)}>
-          {showForm ? "Cancel" : "New Product"}
+        <button type="button" onClick={() => openEdit(editing ? null : "new")}>
+          {editing ? "Cancel" : "New Product"}
         </button>
       </div>
 
-      {showForm && (
-        <form className="inline-form" onSubmit={handleCreate}>
-          <input name="sku" placeholder="SKU" required />
-          <input name="name" placeholder="Name" required />
-          <input name="description" placeholder="Description (optional)" />
-          <input name="price" type="number" step="0.01" min="0" placeholder="Price" required />
+      {editing && (
+        <form className="inline-form" onSubmit={handleSubmit} key={`${editingProduct?.id ?? "new"}-${editSession}`}>
+          <input name="sku" placeholder="SKU" defaultValue={editingProduct?.sku} required />
+          <input name="name" placeholder="Name" defaultValue={editingProduct?.name} required />
+          <input name="description" placeholder="Description (optional)" defaultValue={editingProduct?.description ?? ""} />
+          <input
+            name="price"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="Price"
+            defaultValue={editingProduct?.price}
+            required
+          />
           <button type="submit" disabled={submitting}>
-            {submitting ? "Creating…" : "Create"}
+            {submitting ? "Saving…" : editingProduct ? "Save" : "Create"}
           </button>
           {formError && <p className="error-text">{formError}</p>}
         </form>
@@ -91,8 +104,8 @@ export default function ProductsPage() {
         <input
           type="search"
           placeholder="Search by name or SKU…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
         />
         <button type="submit">Search</button>
       </form>
@@ -124,6 +137,10 @@ export default function ProductsPage() {
                     <span className={`status-badge status-${product.status.toLowerCase()}`}>{product.status}</span>
                   </td>
                   <td>
+                    <button type="button" className="link-button" onClick={() => openEdit(product)}>
+                      Edit
+                    </button>
+                    {" · "}
                     <button type="button" className="link-button" onClick={() => handleToggleStatus(product)}>
                       {product.status === "ACTIVE" ? "Disable" : "Enable"}
                     </button>

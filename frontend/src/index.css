@@ -340,3 +340,9 @@ input {
   font-size: 13px;
   margin-top: 8px;
 }
+
+.auth-switch {
+  margin-top: 16px;
+  font-size: 13px;
+  text-align: center;
+}

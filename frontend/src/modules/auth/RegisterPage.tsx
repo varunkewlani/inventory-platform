@@ -1,10 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../store/AuthContext";
+import type { ApiResponse } from "../../types/api";
 
-export default function LoginPage() {
-  const { login } = useAuth();
+export default function RegisterPage() {
+  const { register } = useAuth();
   const navigate = useNavigate();
+  const [organizationName, setOrganizationName] = useState("");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -15,10 +18,13 @@ export default function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await login(email, password);
+      await register(organizationName, name, email, password);
       navigate("/", { replace: true });
-    } catch {
-      setError("Invalid email or password");
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: ApiResponse<unknown> } })?.response?.data?.error?.message ??
+        "Registration failed";
+      setError(message);
     } finally {
       setSubmitting(false);
     }
@@ -28,7 +34,19 @@ export default function LoginPage() {
     <div className="auth-page">
       <form className="auth-card" onSubmit={handleSubmit}>
         <h1>Inventory Platform</h1>
-        <p className="auth-subtitle">Sign in to your organization</p>
+        <p className="auth-subtitle">Create your organization</p>
+
+        <label htmlFor="organizationName">Organization name</label>
+        <input
+          id="organizationName"
+          value={organizationName}
+          onChange={(e) => setOrganizationName(e.target.value)}
+          required
+          autoFocus
+        />
+
+        <label htmlFor="name">Your name</label>
+        <input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
 
         <label htmlFor="email">Email</label>
         <input
@@ -37,7 +55,6 @@ export default function LoginPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          autoFocus
         />
 
         <label htmlFor="password">Password</label>
@@ -47,16 +64,17 @@ export default function LoginPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          minLength={8}
         />
 
         {error && <p className="auth-error">{error}</p>}
 
         <button type="submit" disabled={submitting}>
-          {submitting ? "Signing in…" : "Sign in"}
+          {submitting ? "Creating…" : "Create organization"}
         </button>
 
         <p className="auth-switch">
-          New here? <Link to="/register">Create an organization</Link>
+          Already have an account? <Link to="/login">Sign in</Link>
         </p>
       </form>
     </div>

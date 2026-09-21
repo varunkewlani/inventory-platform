@@ -1,34 +1,21 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { apiClient } from "../../services/apiClient";
+import { usePaginatedResource } from "../../hooks/usePaginatedResource";
 import type { ApiResponse, Page } from "../../types/api";
 import type { InventoryRow } from "./inventory.types";
 import type { Warehouse } from "../warehouses/warehouses.types";
 import type { Product } from "../products/products.types";
 
 export default function InventoryPage() {
-  const [page, setPage] = useState<Page<InventoryRow> | null>(null);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function load() {
-    setLoading(true);
-    setError(null);
-    apiClient
-      .get<ApiResponse<Page<InventoryRow>>>("/inventory", { params: { page: 1, limit: 20 } })
-      .then((res) => {
-        if (res.data.data) setPage(res.data.data);
-      })
-      .catch(() => setError("Failed to load inventory"))
-      .finally(() => setLoading(false));
-  }
+  const { page, loading, error, reload } = usePaginatedResource<InventoryRow>("/inventory", { page: 1, limit: 20 });
 
   useEffect(() => {
-    load();
     apiClient
       .get<ApiResponse<Page<Warehouse>>>("/warehouses", { params: { page: 1, limit: 100 } })
       .then((res) => setWarehouses(res.data.data?.content ?? []));
@@ -51,7 +38,7 @@ export default function InventoryPage() {
       });
       setShowForm(false);
       e.currentTarget.reset();
-      load();
+      reload();
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: ApiResponse<unknown> } })?.response?.data?.error?.message ??

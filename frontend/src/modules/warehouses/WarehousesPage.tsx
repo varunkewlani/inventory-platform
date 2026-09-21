@@ -1,49 +1,47 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { apiClient } from "../../services/apiClient";
-import type { ApiResponse, Page } from "../../types/api";
+import { usePaginatedResource } from "../../hooks/usePaginatedResource";
+import type { ApiResponse } from "../../types/api";
 import type { Warehouse } from "./warehouses.types";
 
 export default function WarehousesPage() {
-  const [page, setPage] = useState<Page<Warehouse> | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Warehouse | "new" | null>(null);
+  // Bumped on every open so the form's `key` below always changes, even when
+  // re-opening the same row or clicking Edit twice in a row — without this,
+  // passing the same object/string back into setEditing can be a no-op from
+  // React's point of view (Object.is same-value bailout).
+  const [editSession, setEditSession] = useState(0);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function load() {
-    setLoading(true);
-    setError(null);
-    apiClient
-      .get<ApiResponse<Page<Warehouse>>>("/warehouses", { params: { page: 1, limit: 20 } })
-      .then((res) => {
-        if (res.data.data) setPage(res.data.data);
-      })
-      .catch(() => setError("Failed to load warehouses"))
-      .finally(() => setLoading(false));
+  function openEdit(target: Warehouse | "new" | null) {
+    setEditing(target);
+    setEditSession((s) => s + 1);
   }
 
-  useEffect(() => {
-    load();
-  }, []);
+  const { page, loading, error, reload } = usePaginatedResource<Warehouse>("/warehouses", { page: 1, limit: 20 });
 
-  async function handleCreate(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setFormError(null);
     setSubmitting(true);
     const form = new FormData(e.currentTarget);
+    const body = {
+      name: form.get("name"),
+      address: form.get("address") || undefined,
+    };
     try {
-      await apiClient.post("/warehouses", {
-        name: form.get("name"),
-        address: form.get("address") || undefined,
-      });
-      setShowForm(false);
-      e.currentTarget.reset();
-      load();
+      if (editing && editing !== "new") {
+        await apiClient.patch(`/warehouses/${editing.id}`, body);
+      } else {
+        await apiClient.post("/warehouses", body);
+      }
+      setEditing(null);
+      reload();
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: ApiResponse<unknown> } })?.response?.data?.error?.message ??
-        "Failed to create warehouse";
+        "Save failed";
       setFormError(message);
     } finally {
       setSubmitting(false);
@@ -53,24 +51,26 @@ export default function WarehousesPage() {
   async function handleToggleStatus(warehouse: Warehouse) {
     const nextStatus = warehouse.status === "ACTIVE" ? "DISABLED" : "ACTIVE";
     await apiClient.patch(`/warehouses/${warehouse.id}`, { status: nextStatus });
-    load();
+    reload();
   }
+
+  const editingWarehouse = editing !== "new" ? editing : null;
 
   return (
     <div className="page">
       <div className="page-header">
         <h1>Warehouses</h1>
-        <button type="button" onClick={() => setShowForm((v) => !v)}>
-          {showForm ? "Cancel" : "New Warehouse"}
+        <button type="button" onClick={() => openEdit(editing ? null : "new")}>
+          {editing ? "Cancel" : "New Warehouse"}
         </button>
       </div>
 
-      {showForm && (
-        <form className="inline-form" onSubmit={handleCreate}>
-          <input name="name" placeholder="Name" required />
-          <input name="address" placeholder="Address (optional)" />
+      {editing && (
+        <form className="inline-form" onSubmit={handleSubmit} key={`${editingWarehouse?.id ?? "new"}-${editSession}`}>
+          <input name="name" placeholder="Name" defaultValue={editingWarehouse?.name} required />
+          <input name="address" placeholder="Address (optional)" defaultValue={editingWarehouse?.address ?? ""} />
           <button type="submit" disabled={submitting}>
-            {submitting ? "Creating…" : "Create"}
+            {submitting ? "Saving…" : editingWarehouse ? "Save" : "Create"}
           </button>
           {formError && <p className="error-text">{formError}</p>}
         </form>
@@ -101,6 +101,10 @@ export default function WarehousesPage() {
                     <span className={`status-badge status-${warehouse.status.toLowerCase()}`}>{warehouse.status}</span>
                   </td>
                   <td>
+                    <button type="button" className="link-button" onClick={() => openEdit(warehouse)}>
+                      Edit
+                    </button>
+                    {" · "}
                     <button type="button" className="link-button" onClick={() => handleToggleStatus(warehouse)}>
                       {warehouse.status === "ACTIVE" ? "Disable" : "Enable"}
                     </button>

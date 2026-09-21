@@ -7,6 +7,7 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (organizationName: string, name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -59,6 +60,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
   }
 
+  async function register(organizationName: string, name: string, email: string, password: string) {
+    const res = await apiClient.post<ApiResponse<LoginResponseData>>("/auth/register", {
+      organizationName,
+      name,
+      email,
+      password,
+    });
+    const data = res.data.data;
+    if (!data) throw new Error("Registration failed");
+    setAccessToken(data.accessToken);
+    setUser(data.user);
+  }
+
   async function logout() {
     try {
       await apiClient.post("/auth/logout");
@@ -69,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
