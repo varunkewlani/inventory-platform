@@ -63,4 +63,13 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long>, Jpa
             "i.availableQuantity = i.availableQuantity + :qty, i.version = i.version + 1 " +
             "where i.id = :id and i.reservedQuantity >= :qty")
     int releaseIfReserved(@Param("id") Long id, @Param("qty") int qty);
+
+    // Order completion: reserved stock has physically left the warehouse, so
+    // it's removed from reservedQuantity WITHOUT returning to
+    // availableQuantity — distinct from release, which is for cancellation.
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Transactional
+    @Query("update Inventory i set i.reservedQuantity = i.reservedQuantity - :qty, i.version = i.version + 1 " +
+            "where i.id = :id and i.reservedQuantity >= :qty")
+    int consumeReservedIfSufficient(@Param("id") Long id, @Param("qty") int qty);
 }

@@ -14,6 +14,8 @@ public interface InventoryService {
 
     InventoryResponse release(ReleaseInventoryRequest request);
 
+    InventoryResponse fulfill(FulfillInventoryRequest request);
+
     Page<InventoryResponse> list(Long warehouseId, Long productId, Pageable pageable);
 
     Page<InventoryMovementResponse> history(Long inventoryId, Pageable pageable);

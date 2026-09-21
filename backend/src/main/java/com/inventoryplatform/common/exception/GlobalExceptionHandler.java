@@ -4,6 +4,7 @@ import com.inventoryplatform.common.response.ApiResponse;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -45,6 +46,19 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleAuthentication(Exception ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error("UNAUTHORIZED", "Invalid credentials"));
+    }
+
+    // A safety net for unique-constraint races (two concurrent requests both
+    // trying to create the "first" row for the same natural key — an
+    // inventory row for a never-before-stocked product, an order replaying
+    // the same idempotency key, etc). Letting this propagate up to here
+    // (rather than catching it mid-transaction in the service) means the
+    // transaction rolls back properly through Spring's normal mechanism
+    // instead of risking a half-poisoned Hibernate session.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("DATA_CONFLICT", "This was just created or modified by a concurrent request — please retry"));
     }
 
     @ExceptionHandler(AccessDeniedException.class)

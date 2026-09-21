@@ -12,7 +12,6 @@ import com.inventoryplatform.products.ProductRepository;
 import com.inventoryplatform.warehouses.Warehouse;
 import com.inventoryplatform.warehouses.WarehouseRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -123,6 +122,24 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
+    @Transactional
+    public InventoryResponse fulfill(FulfillInventoryRequest request) {
+        Long organizationId = TenantContext.getOrganizationId();
+        Warehouse warehouse = requireWarehouse(organizationId, request.warehouseId());
+        Product product = requireProduct(organizationId, request.productId());
+        Inventory inventory = requireInventoryRow(organizationId, warehouse.getId(), product.getId());
+
+        int rowsAffected = inventoryRepository.consumeReservedIfSufficient(inventory.getId(), request.quantity());
+        if (rowsAffected == 0) {
+            throw new ConflictException("INVALID_FULFILL", "Cannot fulfill more than is currently reserved");
+        }
+
+        Inventory refreshed = reload(inventory.getId());
+        recordMovement(refreshed, InventoryMovementType.FULFILL, request.quantity(), null);
+        return toResponse(refreshed, warehouse, product);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Page<InventoryResponse> list(Long warehouseId, Long productId, Pageable pageable) {
         Long organizationId = TenantContext.getOrganizationId();
@@ -177,20 +194,17 @@ public class InventoryServiceImpl implements InventoryService {
      */
     private Inventory getOrCreateRow(Long organizationId, Long warehouseId, Long productId) {
         return inventoryRepository.findByOrganizationIdAndWarehouseIdAndProductId(organizationId, warehouseId, productId)
-                .orElseGet(() -> {
-                    try {
-                        return inventoryRepository.save(Inventory.builder()
-                                .organizationId(organizationId)
-                                .warehouseId(warehouseId)
-                                .productId(productId)
-                                .availableQuantity(0)
-                                .reservedQuantity(0)
-                                .build());
-                    } catch (DataIntegrityViolationException e) {
-                        throw new ConflictException("INVENTORY_ROW_RACE",
-                                "This inventory record was just created by a concurrent request — please retry");
-                    }
-                });
+                .orElseGet(() -> inventoryRepository.save(Inventory.builder()
+                        .organizationId(organizationId)
+                        .warehouseId(warehouseId)
+                        .productId(productId)
+                        .availableQuantity(0)
+                        .reservedQuantity(0)
+                        .build()));
+        // A concurrent double-create race here throws DataIntegrityViolationException,
+        // which propagates up and is handled globally (GlobalExceptionHandler) as a
+        // clean 409 after a proper transaction rollback — see the handler for why
+        // that's safer than catching it locally mid-transaction.
     }
 
     private Inventory reload(Long id) {

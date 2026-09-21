@@ -6,5 +6,6 @@ public enum InventoryMovementType {
     TRANSFER_OUT,
     TRANSFER_IN,
     RESERVE,
-    RELEASE
+    RELEASE,
+    FULFILL
 }

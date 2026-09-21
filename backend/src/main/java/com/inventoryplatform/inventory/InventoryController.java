@@ -55,4 +55,10 @@ public class InventoryController {
     public ApiResponse<InventoryResponse> release(@Valid @RequestBody ReleaseInventoryRequest request) {
         return ApiResponse.success(inventoryService.release(request));
     }
+
+    @PostMapping("/fulfill")
+    @RequiresPermission(Permission.INVENTORY_WRITE)
+    public ApiResponse<InventoryResponse> fulfill(@Valid @RequestBody FulfillInventoryRequest request) {
+        return ApiResponse.success(inventoryService.fulfill(request));
+    }
 }

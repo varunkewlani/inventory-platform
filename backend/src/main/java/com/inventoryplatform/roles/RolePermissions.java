@@ -21,6 +21,7 @@ public final class RolePermissions {
                 Permission.USER_READ,
                 Permission.PRODUCT_READ, Permission.PRODUCT_WRITE,
                 Permission.WAREHOUSE_READ, Permission.WAREHOUSE_WRITE,
+                Permission.CUSTOMER_READ, Permission.CUSTOMER_WRITE,
                 Permission.INVENTORY_READ, Permission.INVENTORY_WRITE,
                 Permission.ORDER_READ, Permission.ORDER_CREATE,
                 Permission.ORDER_CANCEL, Permission.ORDER_UPDATE_STATUS,
@@ -30,6 +31,7 @@ public final class RolePermissions {
         MAP.put(Role.STAFF, EnumSet.of(
                 Permission.PRODUCT_READ,
                 Permission.WAREHOUSE_READ,
+                Permission.CUSTOMER_READ,
                 Permission.INVENTORY_READ,
                 Permission.ORDER_READ, Permission.ORDER_CREATE,
                 Permission.ORDER_UPDATE_STATUS
