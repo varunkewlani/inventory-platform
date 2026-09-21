@@ -6,7 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -20,10 +20,15 @@ import java.time.Duration;
  * before authentication so it also protects unauthenticated endpoints
  * (login/register) from brute-force, not just authenticated traffic.
  *
- * <p>Fails <b>open</b> if Redis is unreachable — a rate limiter that takes
- * the entire API down when its own dependency has a hiccup is worse than no
- * rate limiter at all. This is also this app's documented answer to the
- * spec's "Redis unavailable" failure scenario for this specific feature.
+ * <p>Fails <b>open</b> on any Redis-related {@link DataAccessException} —
+ * not just a clean connection refusal, but also a command timing out (a
+ * distinct, sibling exception type that a narrower catch on just connection
+ * failures would miss, silently turning "Redis is slow" into an uncaught
+ * 500 on every request instead of the intended graceful degradation). A
+ * rate limiter that takes the entire API down when its own dependency has
+ * a hiccup is worse than no rate limiter at all. This is also this app's
+ * documented answer to the spec's "Redis unavailable" failure scenario for
+ * this specific feature.
  */
 public class RateLimitFilter extends OncePerRequestFilter {
 
@@ -63,7 +68,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             }
 
             return count != null && count > limit;
-        } catch (RedisConnectionFailureException e) {
+        } catch (DataAccessException e) {
             log.warn("Redis unavailable, allowing request through unrated: {}", e.getMessage());
             return false;
         }

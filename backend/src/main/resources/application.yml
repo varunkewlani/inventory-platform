@@ -29,6 +29,11 @@ spring:
       password: ${REDIS_PASSWORD:}
       ssl:
         enabled: ${REDIS_SSL_ENABLED:false}
+      # Lettuce's own default is 60s -- far too long for something that's
+      # supposed to fail open gracefully. A slow Redis should degrade to
+      # "unrated" in a couple of seconds, not stall every request for a
+      # full minute first.
+      timeout: ${REDIS_COMMAND_TIMEOUT:3000}
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
