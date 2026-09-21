@@ -9,6 +9,7 @@ context/
 # Internal working notes (build plan, running log) — not part of the submission
 plan.md
 handoff.md
+flow.md
 
 # Backend (Maven / Java)
 backend/target/

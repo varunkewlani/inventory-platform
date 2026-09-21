@@ -84,7 +84,7 @@ Redis, two use cases, each with an explicit key/TTL/invalidation strategy docume
 
 **Caching.** Already in place for the highest-value cases (dashboard aggregates, product detail); would extend to product *listings* (the harder case — key composition across search/filter/sort/page combinations) and session/permission lookups if profiling showed them hot.
 
-**CDN.** Static frontend assets (the built Vite bundle) in front of a CDN — trivial win, not yet wired up since there's no production deployment target yet.
+**CDN.** Static frontend assets (the built Vite bundle) in front of a CDN — a trivial win at real scale; the current deployment already gets this for free from Render's static-site hosting, but a dedicated CDN (CloudFront, Cloudflare) would matter more once traffic is geographically spread out.
 
 **Message queue / async processing.** Already event-driven for orders; the same pattern (publish an event, let a worker handle the side effect) is the template for anything else that becomes a bottleneck on the request path — e.g. if audit logging or notification fan-out for *every* entity type (not just orders) became necessary, it follows the same Kafka-topic-plus-consumer-group shape already proven out here.
 

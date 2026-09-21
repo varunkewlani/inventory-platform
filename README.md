@@ -74,9 +74,16 @@ Stated explicitly per the assignment's own guidance ("if any requirement is uncl
 - **WebSocket handshake is not JWT-authenticated.** See [SECURITY.md](SECURITY.md) for the specific gap and what closing it would require.
 - **Structured JSON request logging** (the spec's suggested format) was not implemented — cut for time in favor of the mandatory concurrency test and this documentation set.
 - **Product *list* caching** (as opposed to single-product-by-ID, which is cached) was not implemented — the key-composition problem across search/filter/sort/page combinations was judged lower-value than dashboard/product-detail caching under the time available.
-- **Docker Compose doesn't yet include the backend/frontend containers** — `docker compose up` brings up MySQL/Redis/Kafka; the application itself is run directly (`./mvnw spring-boot:run` / `npm run dev`) rather than containerized, for faster local iteration during development. Containerizing both is a mechanical next step (Dockerfiles + compose service entries), not a design gap.
 - **No configurable per-organization low-stock threshold** — currently a fixed constant (5 units) shared across all tenants.
-- **Actual cloud deployment** was explicitly optional per the assignment and was not attempted, in favor of the mandatory items.
+- **No frontend screen for user/role management** — an Admin can create Manager/Staff accounts via `POST /api/v1/users`, and the role is enforced server-side on every request, but there's no UI for it yet; it's exercised via the API/tests, not yet from the browser.
+- **Kafka is not wired into the live deployment** — fully implemented and tested (the async order-events pipeline, independent audit/notification consumer groups, and the mandatory concurrency test) and runs correctly via `docker compose up`, but the live demo below skips it: a free-tier managed Kafka broker needs SASL_SSL auth wired into the Spring Kafka config, which wasn't a good tradeoff for this timeline. Listener/topic-provisioning/publishing are all disabled via env vars for that deployment specifically (see `KAFKA_LISTENER_AUTO_STARTUP`, `KAFKA_TOPIC_PROVISIONING_ENABLED`, `app.kafka.publishing-enabled` in [SETUP.md](SETUP.md)).
+
+## Live deployment (optional, not required by the assignment)
+
+- App: https://inventory-platform-frontend.onrender.com
+- API: https://inventory-platform-backend-fvyt.onrender.com/api/v1
+
+Runs on free-tier hosting (Render + Aiven MySQL + Upstash Redis). If it's been idle, the backend sleeps and the first request can take up to ~2 minutes to wake up — that's the platform's free-tier behavior, not an application bug. Create your own organization from the app (Login → "Create an organization"); every organization is fully isolated.
 
 ## Future improvements
 
