@@ -56,5 +56,16 @@ public abstract class AbstractIntegrationTest {
         // exercised directly), not by fighting it here in tests that are
         // about something else entirely.
         registry.add("app.rate-limit.requests-per-minute", () -> "100000");
+
+        // No Kafka Testcontainer here (order publishing is exercised via the
+        // ApplicationEvent, not a real broker) -- against the default
+        // localhost:9092 with nothing listening, topic auto-provisioning at
+        // startup and the @KafkaListener consumers' retry loop both burn
+        // real time/CPU on the shared JVM these tests run in, which was
+        // very likely why ConcurrencyTest's Redis calls were timing out
+        // under contention (same mechanism that broke the Render deploy
+        // before these two properties were introduced there).
+        registry.add("app.kafka.topic-provisioning-enabled", () -> "false");
+        registry.add("spring.kafka.listener.auto-startup", () -> "false");
     }
 }
