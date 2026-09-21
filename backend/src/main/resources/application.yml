@@ -32,6 +32,18 @@ spring:
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    admin:
+      # The NewTopic bean below makes Spring Kafka provision the topic at
+      # startup via AdminClient — this runs regardless of listener
+      # auto-startup, and with an unreachable broker its default timeouts
+      # compound into minutes of blocked startup (which is what starved a
+      # free-tier deploy's port-detection into a restart loop). A short
+      # timeout still succeeds fine against a real local/docker-compose
+      # broker; it just fails fast instead of hanging when there is none.
+      fail-fast: false
+      properties:
+        request.timeout.ms: 3000
+        default.api.timeout.ms: 3000
     listener:
       # false when no broker is deployed (e.g. free-tier hosting without a
       # managed Kafka add-on): without this, @KafkaListener containers poll-
