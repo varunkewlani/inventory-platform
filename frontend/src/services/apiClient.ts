@@ -3,7 +3,11 @@ import { getAccessToken, setAccessToken, clearAuth } from "../store/authStore";
 
 const baseURL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080/api/v1";
 
-export const apiClient = axios.create({ baseURL });
+// withCredentials is required here, not just on the /auth/refresh call below
+// — the frontend (:5173) and backend (:8080) are different origins, and
+// without this the browser won't store the Set-Cookie the backend sends
+// back from login/register (the httpOnly refresh token cookie).
+export const apiClient = axios.create({ baseURL, withCredentials: true });
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = getAccessToken();

@@ -24,6 +24,8 @@ body {
   background: #16171d;
   color: #fff;
   padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
 }
 
 .app-nav strong {
@@ -60,6 +62,41 @@ body {
   color: #fff;
 }
 
+.app-nav-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid #2e2f38;
+}
+
+.app-nav-user-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-nav-user-role {
+  font-size: 11px;
+  color: #9c9ca6;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
+}
+
+.app-nav-logout {
+  width: 100%;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid #3a3b46;
+  border-radius: 6px;
+  color: #cfcfd6;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.app-nav-logout:hover {
+  background: #24252e;
+  color: #fff;
+}
+
 .app-content {
   flex: 1;
   padding: 24px 32px;
@@ -67,10 +104,239 @@ body {
 
 .page h1 {
   font-size: 22px;
-  margin: 0 0 8px;
+  margin: 0 0 16px;
+}
+
+.page h2 {
+  font-size: 16px;
+  margin: 24px 0 12px;
 }
 
 .page p {
   color: #6b6375;
   margin: 0;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.page-header h1 {
+  margin: 0;
+}
+
+.page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+button {
+  font: inherit;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  background: #16171d;
+  color: #fff;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #2a2b35;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input {
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #d5d5dc;
+}
+
+.error-text {
+  color: #c0362c;
+}
+
+.empty-state {
+  padding: 24px;
+  text-align: center;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px dashed #d5d5dc;
+}
+
+.widget-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.widget-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #e5e4e7;
+}
+
+.widget-value {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.widget-label {
+  font-size: 13px;
+  color: #6b6375;
+  margin-top: 4px;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e5e4e7;
+  font-size: 14px;
+}
+
+.data-table th {
+  background: #f5f6f8;
+  font-weight: 600;
+  color: #4a4a52;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #eee;
+  color: #444;
+}
+
+.status-active,
+.status-completed {
+  background: #e3f6e8;
+  color: #1e7d3a;
+}
+
+.status-disabled,
+.status-cancelled {
+  background: #fbe6e5;
+  color: #b3261e;
+}
+
+.status-pending {
+  background: #fff4dd;
+  color: #9a6700;
+}
+
+.status-confirmed,
+.status-processing {
+  background: #e5eefc;
+  color: #1a56b8;
+}
+
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e5e4e7;
+  margin-bottom: 16px;
+}
+
+.search-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.search-bar input {
+  flex: 1;
+  max-width: 320px;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #aa3bff;
+  padding: 0;
+  font-size: 13px;
+  text-decoration: underline;
+}
+
+.link-button:hover {
+  background: none;
+  color: #8a2fd1;
+}
+
+.auth-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #16171d;
+}
+
+.auth-card {
+  background: #fff;
+  padding: 40px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.auth-card h1 {
+  font-size: 20px;
+  margin: 0 0 4px;
+}
+
+.auth-subtitle {
+  color: #6b6375;
+  margin: 0 0 20px;
+  font-size: 14px;
+}
+
+.auth-card label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 12px;
+  margin-bottom: 4px;
+}
+
+.auth-card input {
+  width: 100%;
+}
+
+.auth-card button {
+  margin-top: 20px;
+}
+
+.auth-error {
+  color: #c0362c;
+  font-size: 13px;
+  margin-top: 8px;
 }

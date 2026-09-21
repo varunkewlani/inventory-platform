@@ -35,6 +35,9 @@ public class SecurityConfig {
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
 
+    @Value("${app.rate-limit.requests-per-minute:100}")
+    private int rateLimitPerMinute;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -44,7 +47,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         JwtAuthFilter jwtAuthFilter = new JwtAuthFilter(jwtService);
         TenantFilter tenantFilter = new TenantFilter();
-        RateLimitFilter rateLimitFilter = new RateLimitFilter(stringRedisTemplate);
+        RateLimitFilter rateLimitFilter = new RateLimitFilter(stringRedisTemplate, rateLimitPerMinute);
 
         http
                 .csrf(AbstractHttpConfigurer::disable)
